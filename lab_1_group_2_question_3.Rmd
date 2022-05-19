@@ -1,0 +1,175 @@
+---
+title: "Do you believe in miracles?!...or your governor?"
+subtitle: 'Lab 1, Question 3: Are people who believe that science is important for making government decisions about COVID-19 more likely to disapprove of the way their governor is handling the pandemic?'
+author: 'Hannah Gross, Matt Kinkley, Jacquie Nesbitt, Huyette Spring'
+output:
+  bookdown::pdf_document2: 
+    toc: true
+---
+
+\clearpage
+
+```{r load_packages and set options, include=FALSE}
+library(tidyverse) 
+library(magrittr)
+library(knitr)
+library(patchwork)
+library(dplyr)
+library(ggplot2) 
+library(foreign)
+library(skimr)
+library(haven)
+library("gridExtra")                        # Load gridExtra package
+library("ggpubr")
+
+theme_set(theme_bw())
+
+options(tinytex.verbose = TRUE)
+```
+
+```{r load_data, echo = FALSE, message = FALSE, include = TRUE}
+anes <- read_sav("anes_timeseries_2020_spss_20210324.sav")
+```
+
+```{r clean_data, echo = FALSE, include = FALSE}
+anes <- anes %>% 
+  mutate(
+    sci = case_when(
+      V202310 < 0 ~ 'NA', 
+      V202310 == 1 ~ 'Not at all important', 
+      V202310 >= 2 ~ 'Important'), 
+    approval = case_when(
+      V201145 == 1 ~ 'Approve', 
+      V201145 == 2 ~ 'Disapprove', 
+      V201145 < 0 ~ 'NA'),
+    appbern = case_when(
+      V201145 == 1 ~ 0,
+      V201145 == 2 ~ 1)
+  )
+
+df_q3 <- anes %>%
+  filter(sci == 'Important', approval != 'NA')
+
+nrow(df_q3)
+
+```
+
+# Importance and Context
+
+Recently, many Democrat governors have faced recall efforts and endured criticism due to their science-based response to COVID-19, notably California’s Gavin Newsom, Michigan’s Gretchen Whitmer, and Washington State’s Jay Inslee. In light of all this public pushback, these governors may feel pressured to change how they make decisions to respond to the COVID-19 pandemic.
+
+Due to the current state of the affairs, and our scientific background, we wanted to know how others, who believe that science is important for making government decisions about COVID-19, have responded to their governor’s COVID-19 policies, regardless of party affiliation. 
+
+
+
+# Description of Data
+
+First, we defined our grouping variable, which are responses to a question asking “In general, how important should science be for making government decisions about COVID-19?” Possible answers are “Not at all Important”, or four values ranging from “A Little Important” to “Extremely Important”. We filtered our sample to only consist of respondents in any of the four affirmative answer choices, as these are people who agree that science should inform COVID-19 policy to at least some degree. 
+	
+Next, we defined our response variable, which are responses to a question that asks “Do you approve or disapprove of the way [Governor of respondent’s state] has handled the COVID-19 pandemic?” A respondent is allowed to refuse, select “Don’t Know”, “Approve”, or “Disapprove”. We further filtered our sample to those who answered either “Approve” or “Disapprove”, providing us with two possible outcomes. 
+
+There are about 7,200 respondents who responded that science is at least a little important to making policy decisions about COVID-19. The count of respondents increases with the strength of how much they agree with science being important. For example, many more agreed that science is “Extremely important” than “Very important”, which is more than those selecting “Moderately important”, and so on.  On the other hand, there are a total of 118 respondents who select that science is “Not at all important” to such decisions. To answer our research question, we will only analyze governor approval among science supporters. We will not compare nor draw any conclusions of those who do not believe science is important to making government decisions. 
+
+There is a high response rate of selecting either “Approve” or “Disapprove” of the Governor’s handling of COVID-19; few respondents reported not having an opinion on the matter. Exploring an additional question from the ANES survey which asks “Do you [Approve/Disapprove] strongly or not strongly?”, there are about twice as many people who strongly assert approval, compared to those who approve but not strongly. This is true for disapprovers as well. For the purpose of our research question, however, the only responses we considered were “Approve” or “Disapprove”. We note that when finding the probability that someone approves or disapproves with their governor’s handling of the pandemic, we have no information about the strength of that opinion.
+
+
+
+
+
+```{r summary_and_investigation_tables, warning = FALSE, echo = FALSE, message=FALSE, include = TRUE}
+vars <- c('V202310', 'V201145')
+
+df_q3_table <- anes[vars] %>%
+  table() %>%
+  data.frame()
+
+
+ggplot(df_q3_table, aes(V202310, V201145, fill= Freq)) + 
+  geom_tile(aes(fill = Freq)) +
+  geom_text(aes(label = round(Freq, 2))) +
+  scale_fill_gradient(low = "white", high = "green") +
+  theme_classic() +
+  scale_x_discrete(labels=c(
+   "-9. Refused",
+   "-7. No post-election data",
+  "-6. No post-election interview",
+  "-5. Interview breakoff ",
+  "1. Not at all important",
+  "2. A little important",
+  "3. Moderately important",
+  "4. Very important",
+  "5. Extremely important")) +
+  scale_y_discrete(labels=c(
+   "-9. Refused",
+  "-8. Don’t know",
+  "1. Approve",
+  "2. Disapprove")) +
+  labs(
+    y = 'Approval of Governor\'s handling of COVID', x = 'Importance of science for decisions about COVID', 
+    title = 'COVID: Importance of science against approval of the Governor\'s handling') +
+  coord_flip() +
+  theme(
+    axis.text.x = element_text(angle = 90), 
+    plot.title = element_text(hjust = 1), 
+    axis.title.y = element_text(hjust= 1, size = 10), 
+    axis.title.x = element_text(size = 10))
+
+
+```
+We chose to group together the range of four affirmative answer responses as it both simplified and broadened our sample. We refer to our sample, people who believe science is “at least a little bit important”, as science supporters. However, the variance within the group should be noted when interpreting. We grouped these responses together because the question asks whether science is important, not the degree to which the respondent agrees. It is important to note that our test statistic does not consider the strength of agreement with the importance of science in government decisions.  
+
+In summary, to operationalize the science-supporter variable we removed empty values and any not equal to “1 - Not at all important” through “5 - Extremely Important”. For the approval of the Governor’s handling of the pandemic variable, we removed empty values and any values not equal to “1 - Approve” or “2 - Disapprove”. There are 7,228 total observations in this subset of data.
+
+
+# Most appropriate test
+Because our response variable is binary, e.g. either “Approve” or “Disapprove”, we can use the Exact Binomial Test (binom.test) in R to evaluate whether the observed proportion in our sample is significantly different than our expected value of 0.5. 0.5 represents equal proportion of Approve/Disapprove of governor’s handling of pandemic. Regarding a “Disapprove” answer as a “success” out of the total respondents in our sample, the Binomial test will yield us a p-value that indicates whether our sample’s proportion of “Disapprove” answers is much higher or lower than the null hypothesis. 
+
+An Exact Binomial Test tests a simple null hypothesis about the probability of success in a Bernoulli experiment. In our case, we wanted to determine the probability that a science supporter either “Disapproves” (1 in the Bernoulli trial, or a “Success” in terms of x for the binom.test), or “Approves” (0 in the Bernoulli and not a success) of their Governor. 
+
+Assumptions for an Exact Binomial Test:
+
+1. The number of observations is fixed.
+
+Our sample has a finite amount of observations and is significantly less than the overall population. This allows us to observe small changes in results. We use binomial testing when there are two possible outcomes with discrete data points.
+
+2. Each observation is independent.
+
+One respondent’s opinion of his/her governor is independent from that of another respondent.
+
+3. Each observation represents one of two outcomes ("success" or "failure").
+
+The two outcomes (success or failure) are directly mapped to “Approve” or “Disapprove” survey responses.
+
+4. The probability of "success" is the same for each outcome.
+
+By virtue of the survey being independent and identically distributed (I.I.D.), the probability of a respondent approving or disapproving is the same among each respondent. 
+
+
+# Test, results and interpretation
+
+Null Hypothesis: The probability that a science supporter disapproves of their governor's handling of the pandemic is equal to the probability that they approve of their governor.
+
+Alternative Hypothesis: The probability that a science supporter disapproves of their governor's handling of the pandemic is not equal to the probability that they approve. Science supporter being someone who believes science is at least a little important to making government decisions about COVID-19
+
+Rejection criteria: Two-tailed, If the p-value is greater than .05, we will reject the null hypothesis.
+
+Our test results indicate that the probability of a science supporter to disapprove of their governor to be 0.37, with a statistically significant p-value of 2.2 e-16. Therefore, we rejected the null hypothesis that the probability of a science supporter approving or disapproving of their governor is equal.
+
+Practically speaking, this suggests that science supporters are more likely to have approved of their governor’s handling of the pandemic. Thus, provides preliminary evidence that Governors are acting closer in line with how citizens who regard science as important would like them to. Even though we had a statistically significant result, the effect size is small, meaning that there was only a slight deviation from our hypothesized proportion of 0.5. 
+
+```{r statistical_test, echo = TRUE, include = FALSE}
+binom.test(sum(df_q3$appbern == 1), nrow(df_q3))
+```
+
+# Limitations
+We view potential bias in data collection as well as the research question itself to be limiting factors in this statistical test. We suspect that people who believe in science are more common respondents in ANES’ study, as these are people who may be more open to participating in a scientific research project. Furthermore, because we limited our test to only those who believe that science is important for making government decisions about COVID-19, our results are limited to that specific group of individuals. Finally, the broad scope of our research question required a national-level analysis, which may have concealed some more impactful insights. For instance, comparing governor approval and disapproval by state may yield a more precise and meaningful result. Despite the limitations of our test, we were able to derive statistically significant support for governor actions by scientifically-minded Americans. We hope that this finding will be impactful enough to inspire additional investigation. 
+
+# Bibliography
+American National Election Studies. 2021. ANES 2020 Time Series Study Preliminary Release: Combined Pre-Election and Post-Election Data [dataset and documentation]. March 24, 2021 version. [www.electionstudies.org](http://www.electionstudies.org)
+
+Ballotpedia.org, [“Gubernatorial recalls”](https://ballotpedia.org/Gubernatorial_recalls#2021)
+
+Hubler, [“The California Recall, Untangled”](https://www.nytimes.com/article/california-recall-election-gavin-newsom.html)
+
+Petrocik, [“Measuring party support: Leaners are not independents”](https://www.sciencedirect.com/science/article/abs/pii/S0261379409000511)
+
